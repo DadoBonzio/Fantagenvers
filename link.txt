@@ -1,0 +1,5 @@
+Classifica: https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pub?gid=0&single=true&output=csv
+Regolamento: https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pub?gid=652674934&single=true&output=csv
+Rose: https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pub?gid=740776950&single=true&output=csv
+Eventi: https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pub?gid=833524583&single=true&output=csv
+API: https://script.google.com/macros/s/AKfycbwQyZ4VTZOGP6f2PFW00VCKSMWwNfxc8RVNvWbRjhMh4_jwKzv8t5e7VNoqxaXKE3JC/exec

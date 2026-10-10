@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantagenvers</title>
+    <!-- Tailwind per il design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PapaParse per leggere i file CSV da Google Sheets -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { fantaRed: '#dc2626', fantaDark: '#0f172a', fantaCard: '#1e293b' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .nav-btn.active { background-color: #dc2626; color: white; border-color: #f87171; box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.39); }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 pb-20">
+
+    <header class="text-center mb-8 mt-4">
+        <h1 class="text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-800 mb-2 tracking-tight uppercase">
+            Fantagenvers
+        </h1>
+        <p class="text-gray-400 text-lg">L'asta è conclusa. Il gioco ha inizio.</p>
+    </header>
+
+    <!-- MENU DI NAVIGAZIONE -->
+    <nav class="flex flex-wrap justify-center gap-3 mb-10 max-w-4xl mx-auto">
+        <button onclick="showTab('classifica', this)" class="nav-btn active px-6 py-2 rounded-full font-bold transition-all bg-fantaCard border border-gray-700 hover:bg-red-900">Classifica</button>
+        <button onclick="showTab('squadre', this)" class="nav-btn px-6 py-2 rounded-full font-bold transition-all bg-fantaCard border border-gray-700 hover:bg-red-900">Le Squadre</button>
+        <button onclick="showTab('regolamento', this)" class="nav-btn px-6 py-2 rounded-full font-bold transition-all bg-fantaCard border border-gray-700 hover:bg-red-900">Regolamento</button>
+        <button onclick="showTab('inserisci-squadra', this)" class="nav-btn px-6 py-2 rounded-full font-bold transition-all bg-fantaCard border border-gray-700 hover:bg-red-900">➕ Crea Rosa</button>
+        <button onclick="showTab('assegna-bonus', this)" class="nav-btn px-6 py-2 rounded-full font-bold transition-all bg-fantaCard border border-gray-700 hover:bg-red-900">⚡ Assegna Punti</button>
+    </nav>
+
+    <!-- LISTA SQUADRE AUTOGENERATA (per evitare errori di battitura nei form) -->
+    <datalist id="lista-squadre"></datalist>
+
+    <!-- TAB 1: CLASSIFICA -->
+    <main id="classifica" class="tab-content active max-w-3xl mx-auto">
+        <div class="bg-fantaCard rounded-xl shadow-2xl overflow-hidden border border-gray-800">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-red-900/30 text-red-500 border-b border-gray-800">
+                        <th class="p-4 font-semibold text-center w-16">Pos</th>
+                        <th class="p-4 font-semibold">Squadra</th>
+                        <th class="p-4 font-semibold text-right">Punti</th>
+                    </tr>
+                </thead>
+                <tbody id="classifica-body">
+                    <tr><td colspan="3" class="p-8 text-center text-gray-500 animate-pulse">Caricamento classifica...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- TAB 2: LE SQUADRE -->
+    <main id="squadre" class="tab-content max-w-3xl mx-auto">
+        <div class="bg-fantaCard p-6 rounded-xl shadow-xl border border-gray-800 mb-6">
+            <label for="team-select" class="block text-gray-400 font-semibold mb-2">Seleziona una squadra per vederne la rosa:</label>
+            <select id="team-select" onchange="renderTeam(this.value)" class="w-full bg-[#0f172a] border border-gray-700 text-white rounded-lg p-3 outline-none focus:border-red-500 transition-colors">
+                <option value="">-- Scegli una squadra --</option>
+            </select>
+        </div>
+        <div id="team-roster" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- La rosa comparirà qui -->
+        </div>
+    </main>
+
+    <!-- TAB 3: REGOLAMENTO -->
+    <main id="regolamento" class="tab-content max-w-4xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="regolamento-body">
+            <div class="p-8 text-center text-gray-500 col-span-2">Caricamento regolamento...</div>
+        </div>
+    </main>
+
+    <!-- TAB 4: CREA ROSA -->
+    <main id="inserisci-squadra" class="tab-content max-w-xl mx-auto">
+        <div class="bg-fantaCard p-8 rounded-xl shadow-2xl border border-gray-800">
+            <h2 class="text-2xl font-bold mb-6 text-red-500">Aggiungi giocatore</h2>
+            <form onsubmit="inviaGiocatore(event)" class="flex flex-col gap-5">
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Nome della Squadra</label>
+                    <input type="text" id="nome-squadra" list="lista-squadre" placeholder="Es. I Fuoricorso" required class="w-full p-3 rounded bg-[#0f172a] border border-gray-700 text-white focus:border-red-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Categoria Personaggio</label>
+                    <select id="categoria-giocatore" required class="w-full p-3 rounded bg-[#0f172a] border border-gray-700 text-white focus:border-red-500 outline-none">
+                        <option value="">-- Seleziona --</option>
+                        <option value="Agenvers">Agenvers</option>
+                        <option value="Professori">Professori</option>
+                        <option value="Lusticers">Lusticers</option>
+                        <option value="Comparse">Comparse</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Nome del Giocatore</label>
+                    <input type="text" id="nome-giocatore" placeholder="Es. Mario Rossi / Prof. Severini" required class="w-full p-3 rounded bg-[#0f172a] border border-gray-700 text-white focus:border-red-500 outline-none">
+                </div>
+                <button type="submit" id="btn-salva-giocatore" class="mt-2 bg-red-600 hover:bg-red-700 text-white p-4 rounded-lg font-bold transition-all shadow-lg">Salva nella Rosa</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- TAB 5: ASSEGNA BONUS/MALUS -->
+    <main id="assegna-bonus" class="tab-content max-w-xl mx-auto">
+        <div class="bg-fantaCard p-8 rounded-xl shadow-2xl border border-gray-800">
+            <h2 class="text-2xl font-bold mb-6 text-red-500">Registra un Evento</h2>
+            <form onsubmit="inviaEvento(event)" class="flex flex-col gap-5">
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Squadra che riceve i punti</label>
+                    <input type="text" id="evento-squadra" list="lista-squadre" placeholder="Es. I Fuoricorso" required class="w-full p-3 rounded bg-[#0f172a] border border-gray-700 text-white focus:border-red-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Giocatore coinvolto</label>
+                    <input type="text" id="evento-giocatore" placeholder="Chi ha compiuto l'azione?" required class="w-full p-3 rounded bg-[#0f172a] border border-gray-700 text-white focus:border-red-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Azione compiuta</label>
+                    <input type="text" id="evento-azione" placeholder="Es. Il prof ha fatto una battuta" required class="w-full p-3 rounded bg-[#0f172a] border border-gray-700 text-white focus:border-red-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400 mb-1 block">Punti (usa il - per i malus)</label>
+                    <input type="number" id="evento-punti" placeholder="Es. 10 oppure -5" required class="w-full p-3 rounded bg-[#0f172a] border border-gray-700 text-white focus:border-red-500 outline-none">
+                </div>
+                <button type="submit" id="btn-salva-evento" class="mt-2 bg-red-600 hover:bg-red-700 text-white p-4 rounded-lg font-bold transition-all shadow-lg">Registra Punteggio</button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // =========================================================
+        // CONFIGURAZIONE: INCOLLA QUI I TUOI LINK
+        // =========================================================
+        
+        // 1. L'URL dello script creato su Google Apps Script (per scrivere i dati)
+        const API_URL = "https://script.google.com/macros/s/AKfycbwQyZ4VTZOGP6f2PFW00VCKSMWwNfxc8RVNvWbRjhMh4_jwKzv8t5e7VNoqxaXKE3JC/exec"; 
+
+        // 2. I tre link CSV presi da File > Condividi > Pubblica sul web
+        const CSV_CLASSIFICA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pubhtml?gid=0&single=true";
+        const CSV_ROSE       = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pubhtml?gid=740776950&single=true";
+        const CSV_REGOLAMENTO= "https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pubhtml?gid=652674934&single=true";
+
+        // =========================================================
+
+        let globalRose = [];
+
+        // Gestione Menu
+        function showTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => { 
+                el.classList.remove('active', 'bg-red-600'); 
+                el.classList.add('bg-fantaCard'); 
+            });
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active', 'bg-red-600');
+            btn.classList.remove('bg-fantaCard');
+        }
+
+        // Funzione per leggere i CSV
+        function fetchCSV(url) {
+            return new Promise((resolve, reject) => {
+                if(!url || url.includes("INCOLLA_QUI")) { resolve([]); return; }
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => resolve(results.data),
+                    error: (err) => reject(err)
+                });
+            });
+        }
+
+        // Render Classifica
+        function renderClassifica(data) {
+            const tbody = document.getElementById('classifica-body');
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-500">Nessun dato o link CSV non configurato.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = '';
+            // Ordina dal punteggio più alto
+            data.sort((a, b) => (parseInt(b.Punti) || 0) - (parseInt(a.Punti) || 0)).forEach((row, i) => {
+                if(!row.Squadra) return;
+                let badge = i === 0 ? '👑' : (i + 1);
+                let colorClass = i === 0 ? 'text-yellow-400 font-bold' : 'text-gray-300';
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
+                        <td class="p-4 text-center ${colorClass} text-xl">${badge}</td>
+                        <td class="p-4 font-bold text-white text-lg">${row.Squadra}</td>
+                        <td class="p-4 text-right font-mono text-2xl font-bold text-red-500">${row.Punti || 0}</td>
+                    </tr>`;
+            });
+        }
+
+        // Setup Squadre e Datalist
+        function setupSquadre(roseData) {
+            globalRose = roseData;
+            const select = document.getElementById('team-select');
+            const datalist = document.getElementById('lista-squadre');
+            
+            const squadre = [...new Set(roseData.map(r => r.Squadra).filter(Boolean))];
+            
+            select.innerHTML = '<option value="">-- Scegli la tua squadra --</option>';
+            datalist.innerHTML = '';
+            
+            squadre.forEach(sq => {
+                select.innerHTML += `<option value="${sq}">${sq}</option>`;
+                datalist.innerHTML += `<option value="${sq}">`; // Suggerimenti per i form
+            });
+        }
+
+        // Render Singola Squadra
+        function renderTeam(squadraNome) {
+            const container = document.getElementById('team-roster');
+            container.innerHTML = '';
+            if (!squadraNome) return;
+
+            const myTeam = globalRose.filter(r => r.Squadra === squadraNome);
+            
+            const categories = {
+                "Agenvers": "border-blue-500/30 bg-blue-500/10 text-blue-400",
+                "Professori": "border-purple-500/30 bg-purple-500/10 text-purple-400",
+                "Lusticers": "border-orange-500/30 bg-orange-500/10 text-orange-400",
+                "Comparse": "border-gray-400/30 bg-gray-400/10 text-gray-300"
+            };
+
+            if(myTeam.length === 0) {
+                container.innerHTML = '<div class="text-gray-500">Nessun giocatore in questa squadra.</div>';
+                return;
+            }
+
+            myTeam.forEach(membro => {
+                if(!membro.Giocatore) return; // Assicurati che l'intestazione su sheets sia "Giocatore"
+                const catStr = (membro.Categoria || "Comparse").trim();
+                const style = categories[catStr] || categories["Comparse"];
+                
+                container.innerHTML += `
+                    <div class="p-4 rounded-xl border ${style} flex flex-col shadow-sm">
+                        <span class="text-xs font-bold uppercase tracking-wider mb-1 opacity-80">${catStr}</span>
+                        <span class="text-lg font-semibold text-white">${membro.Giocatore}</span>
+                    </div>`;
+            });
+        }
+
+        // Render Regolamento
+        function renderRegolamento(data) {
+            const container = document.getElementById('regolamento-body');
+            if(data.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-500 col-span-2">Nessun dato o link CSV non configurato.</div>';
+                return;
+            }
+            container.innerHTML = '';
+            data.forEach(row => {
+                if(!row.Azione) return;
+                const pt = parseInt(row.Punti) || 0;
+                const isBonus = pt > 0;
+                const color = isBonus ? 'text-green-400' : 'text-red-500';
+                const bg = isBonus ? 'bg-green-400/10 border-green-400/20' : 'bg-red-500/10 border-red-500/20';
+                const sign = isBonus ? '+' : '';
+                const destinatario = row.Destinatario ? `<span class="bg-gray-800 text-xs px-2 py-1 rounded text-gray-300 mr-2">${row.Destinatario}</span>` : '';
+                
+                container.innerHTML += `
+                    <div class="p-5 rounded-xl border ${bg} flex flex-col justify-center shadow-sm">
+                        <div class="flex justify-between items-start gap-4 mb-2">
+                            <span class="text-gray-200 font-medium leading-tight">${row.Azione}</span>
+                            <span class="font-bold text-2xl ${color} whitespace-nowrap">${sign}${pt}</span>
+                        </div>
+                        <div>${destinatario}</div>
+                    </div>`;
+            });
+        }
+
+        // Caricamento Dati Iniziale
+        async function initData() {
+            try {
+                const dataClassifica = await fetchCSV('https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pub?gid=0&single=true&output=csv');
+                renderClassifica(dataClassifica);
+
+                const dataRose = await fetchCSV('https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pub?gid=740776950&single=true&output=csv');
+                setupSquadre(dataRose);
+
+                const dataRegolamento = await fetchCSV('https://docs.google.com/spreadsheets/d/e/2PACX-1vTRl-qnKldgasEz_DfiahCZaQ3LLW_POMA-_jn_58GcIEWjDf_45bfyMrxJ3i1tRYjxnUJKIIrhCfxN/pub?gid=652674934&single=true&output=csv');
+                renderRegolamento(dataRegolamento);
+            } catch(e) {
+                console.error("Errore recupero CSV", e);
+            }
+        }
+
+        // Invio tramite API
+        async function inviaGiocatore(e) {
+            e.preventDefault();
+            if(API_URL.includes("INCOLLA_QUI")) return alert("Devi prima inserire l'URL dell'API nel codice HTML!");
+
+            const btn = document.getElementById('btn-salva-giocatore');
+            const originalText = btn.innerText;
+            btn.innerText = "Salvataggio in corso...";
+            btn.disabled = true;
+
+            const sq = encodeURIComponent(document.getElementById('nome-squadra').value);
+            const cat = encodeURIComponent(document.getElementById('categoria-giocatore').value);
+            const nome = encodeURIComponent(document.getElementById('nome-giocatore').value);
+
+            const url = `${API_URL}?action=addPlayer&squadra=${sq}&categoria=${cat}&nome=${nome}`;
+            
+            await fetch(url, { method: 'GET', mode: 'no-cors' });
+            
+            alert("Giocatore aggiunto! Sarà visibile al prossimo ricaricamento della pagina.");
+            document.getElementById('nome-giocatore').value = ''; 
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        async function inviaEvento(e) {
+            e.preventDefault();
+            if(API_URL.includes("INCOLLA_QUI")) return alert("Devi prima inserire l'URL dell'API nel codice HTML!");
+
+            const btn = document.getElementById('btn-salva-evento');
+            const originalText = btn.innerText;
+            btn.innerText = "Registrazione in corso...";
+            btn.disabled = true;
+
+            const sq = encodeURIComponent(document.getElementById('evento-squadra').value);
+            const gioc = encodeURIComponent(document.getElementById('evento-giocatore').value);
+            const az = encodeURIComponent(document.getElementById('evento-azione').value);
+            const pt = encodeURIComponent(document.getElementById('evento-punti').value);
+
+            const url = `${API_URL}?action=addEvent&squadra=${sq}&giocatore=${gioc}&azione=${az}&punti=${pt}`;
+            
+            await fetch(url, { method: 'GET', mode: 'no-cors' });
+            
+            alert("Bonus/Malus registrato! La classifica si aggiornerà al prossimo caricamento.");
+            e.target.reset();
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        // Avvia la lettura dei dati all'apertura del sito
+        initData();
+    </script>
+</body>
+</html>
